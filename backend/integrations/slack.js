@@ -13,7 +13,10 @@ const messages = [];
 // State that would hold the vectors
 const PineconeVectors = [];
 
-const token = 'xoxb-7845719592723-7904871706887-MJrOQZsEUQcJCXHnFTxV9V2W';
+// Slack token
+// Had to hardcode the token
+const token = process.env.SLACK_TOKEN;
+
 
 // Initialize the Slack client
 const slackClient = new WebClient(token);
