@@ -88,7 +88,7 @@ async function uploadVectorsToPinecone(vectors, messages) {
                 apiKey: process.env.PINECONE_API_KEY 
             
             });
-        const index = pc.index("slackindex");
+        const index = pc.index(process.env.VECTOR_DATABASE_INDEX_NAME);
 
         const upsertData = vectors.map((vector, idx) => ({
             id: `msg_${idx}`,

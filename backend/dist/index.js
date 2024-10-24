@@ -1142,7 +1142,7 @@ function uploadVectorsToPinecone(vectors, messages2) {
           apiKey: process.env.PINECONE_API_KEY
         }
       );
-      const index = pc.index("slackindex");
+      const index = pc.index(process.env.VECTOR_DATABSE_INDEX_NAME);
       const upsertData = vectors.map((vector, idx) => {
         var _a, _b, _c;
         return {
