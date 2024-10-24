@@ -5,6 +5,7 @@ import express, { Express, Request, Response } from "express";
 import { sandbox } from "./src/controllers/sandbox.controller";
 import { initObservability } from "./src/observability";
 import chatRouter from "./src/routes/chat.route";
+import { runAll } from "./integrations/slack";
 
 const app: Express = express();
 const port = parseInt(process.env.PORT || "8000");
@@ -14,6 +15,7 @@ const isDevelopment = !env || env === "development";
 const prodCorsOrigin = process.env["PROD_CORS_ORIGIN"];
 
 initObservability();
+
 
 app.use(express.json({ limit: "50mb" }));
 
@@ -45,4 +47,12 @@ app.use("/api/sandbox", sandbox);
 
 app.listen(port, () => {
   console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
+
+  // Call runAll when the server starts
+  runAll().then(() => {
+    console.log('Slack data processing completed');
+  }).catch((error) => {
+    console.error('Error during Slack data processing:', error);
+  });
+  
 });

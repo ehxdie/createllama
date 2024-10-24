@@ -8,6 +8,8 @@
     "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "allowJs": true, // Allows JavaScript files to be compiled
+    "checkJs": false // Optionally, disables type-checking for JS files
   }
 }

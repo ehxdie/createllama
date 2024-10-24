@@ -378,9 +378,9 @@ var convertMessageContent = (textMessage, imageUrl) => {
 };
 var chatRequest = (req, res) => __async(void 0, null, function* () {
   try {
-    const { messages, data } = req.body;
-    const userMessage = messages.pop();
-    if (!messages || !userMessage || userMessage.role !== "user") {
+    const { messages: messages2, data } = req.body;
+    const userMessage = messages2.pop();
+    if (!messages2 || !userMessage || userMessage.role !== "user") {
       return res.status(400).json({
         error: "messages are required in the request body and the last message must be from the user"
       });
@@ -392,7 +392,7 @@ var chatRequest = (req, res) => __async(void 0, null, function* () {
     const chatEngine = yield createChatEngine();
     const response = yield chatEngine.chat({
       message: userMessageContent,
-      chatHistory: messages
+      chatHistory: messages2
     });
     const result = {
       role: "assistant",
@@ -521,19 +521,19 @@ import { LlamaIndexAdapter, StreamData, streamToResponse } from "ai";
 import { Settings as Settings4 } from "llamaindex";
 
 // src/controllers/llamaindex/streaming/annotations.ts
-function isValidMessages(messages) {
-  const lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
+function isValidMessages(messages2) {
+  const lastMessage = messages2 && messages2.length > 0 ? messages2[messages2.length - 1] : null;
   return lastMessage !== null && lastMessage.role === "user";
 }
-function retrieveDocumentIds(messages) {
-  const documentFiles = retrieveDocumentFiles(messages);
+function retrieveDocumentIds(messages2) {
+  const documentFiles = retrieveDocumentFiles(messages2);
   return documentFiles.map((file) => {
     var _a;
     return ((_a = file.metadata) == null ? void 0 : _a.refs) || [];
   }).flat();
 }
-function retrieveDocumentFiles(messages) {
-  const annotations = getAllAnnotations(messages);
+function retrieveDocumentFiles(messages2) {
+  const annotations = getAllAnnotations(messages2);
   if (annotations.length === 0) return [];
   const files = [];
   for (const { type, data } of annotations) {
@@ -543,15 +543,15 @@ function retrieveDocumentFiles(messages) {
   }
   return files;
 }
-function retrieveMessageContent(messages) {
-  const userMessage = messages[messages.length - 1];
+function retrieveMessageContent(messages2) {
+  const userMessage = messages2[messages2.length - 1];
   return [
     {
       type: "text",
       text: userMessage.content
     },
-    ...retrieveLatestArtifact(messages),
-    ...convertAnnotations(messages)
+    ...retrieveLatestArtifact(messages2),
+    ...convertAnnotations(messages2)
   ];
 }
 function getFileContent(file) {
@@ -583,8 +583,8 @@ function getFileContent(file) {
 `;
   return defaultContent;
 }
-function getAllAnnotations(messages) {
-  return messages.flatMap(
+function getAllAnnotations(messages2) {
+  return messages2.flatMap(
     (message) => {
       var _a;
       return ((_a = message.annotations) != null ? _a : []).map(
@@ -593,9 +593,9 @@ function getAllAnnotations(messages) {
     }
   );
 }
-function retrieveLatestArtifact(messages) {
+function retrieveLatestArtifact(messages2) {
   var _a;
-  const annotations = getAllAnnotations(messages);
+  const annotations = getAllAnnotations(messages2);
   if (annotations.length === 0) return [];
   for (const { type, data } of annotations.reverse()) {
     if (type === "tools" && "toolCall" in data && "toolOutput" in data && typeof data.toolCall === "object" && typeof data.toolOutput === "object" && data.toolCall !== null && data.toolOutput !== null && "name" in data.toolCall && data.toolCall.name === "artifact") {
@@ -615,9 +615,9 @@ ${toolOutput.output.code}
   }
   return [];
 }
-function convertAnnotations(messages) {
+function convertAnnotations(messages2) {
   var _a, _b;
-  const annotations = ((_b = (_a = messages.slice().reverse().find((message) => message.role === "user" && message.annotations)) == null ? void 0 : _a.annotations) == null ? void 0 : _b.map(getValidAnnotation)) || [];
+  const annotations = ((_b = (_a = messages2.slice().reverse().find((message) => message.role === "user" && message.annotations)) == null ? void 0 : _a.annotations) == null ? void 0 : _b.map(getValidAnnotation)) || [];
   if (annotations.length === 0) return [];
   const content = [];
   annotations.forEach(({ type, data }) => {
@@ -865,17 +865,17 @@ function extractQuestions(text) {
 var chat = (req, res) => __async(void 0, null, function* () {
   const vercelStreamData = new StreamData();
   try {
-    const { messages, data } = req.body;
-    if (!isValidMessages(messages)) {
+    const { messages: messages2, data } = req.body;
+    if (!isValidMessages(messages2)) {
       return res.status(400).json({
         error: "messages are required in the request body and the last message must be from the user"
       });
     }
-    const ids = retrieveDocumentIds(messages);
+    const ids = retrieveDocumentIds(messages2);
     const chatEngine = yield createChatEngine(ids, data);
-    const userMessageContent = retrieveMessageContent(messages);
+    const userMessageContent = retrieveMessageContent(messages2);
     const callbackManager = createCallbackManager(vercelStreamData);
-    const chatHistory = messages;
+    const chatHistory = messages2;
     const response = yield Settings4.withCallbackManager(callbackManager, () => {
       return chatEngine.chat({
         message: userMessageContent,
@@ -1064,6 +1064,125 @@ llmRouter.route("/config/llamacloud").get(chatLlamaCloudConfig);
 llmRouter.route("/upload").post(chatUpload);
 var chat_route_default = llmRouter;
 
+// integrations/slack.js
+import { WebClient } from "@slack/web-api";
+import { GeminiEmbedding as GeminiEmbedding2 } from "llamaindex/embeddings/GeminiEmbedding";
+import { Pinecone } from "@pinecone-database/pinecone";
+import fs4 from "fs";
+import dotenv from "dotenv";
+import { jsonToDoc } from "llamaindex/storage/docStore/utils";
+dotenv.config();
+var messages = [];
+var PineconeVectors = [];
+var token = process.env.SLACK_TOKEN;
+var slackClient = new WebClient(token);
+function getChannelNames() {
+  return __async(this, null, function* () {
+    try {
+      const result = yield slackClient.conversations.list({ types: "public_channel" });
+      const channelNames = result.channels.map((channel) => channel.name);
+      console.log("Channel Names:", channelNames);
+      return channelNames;
+    } catch (error) {
+      console.error("Error fetching channels:", error);
+    }
+  });
+}
+function getChannelIdByName(channelName) {
+  return __async(this, null, function* () {
+    try {
+      const result = yield slackClient.conversations.list();
+      const channel = result.channels.find((c) => c.name === channelName);
+      if (channel) return channel.id;
+      else throw new Error(`Channel with name ${channelName} not found.`);
+    } catch (error) {
+      console.error("Error fetching channel ID:", error);
+    }
+  });
+}
+function getMessagesFromChannel(channelId) {
+  return __async(this, null, function* () {
+    try {
+      const result = yield slackClient.conversations.history({ channel: channelId, limit: 10 });
+      const messagesJson = result.messages.map((message) => ({
+        user: message.user,
+        text: message.text,
+        ts: message.ts
+      }));
+      messages.push(...messagesJson);
+      fs4.writeFileSync("channel_messages.json", JSON.stringify(messagesJson, null, 2));
+      console.log("Messages saved to channel_messages.json");
+      return messagesJson;
+    } catch (error) {
+      console.error("Error fetching channel messages:", error);
+    }
+  });
+}
+function vectorizeJSON(jsonData) {
+  return __async(this, null, function* () {
+    const geminiEmbedding = new GeminiEmbedding2({
+      model: process.env.EMBEDDING_MODEL,
+      apiKey: process.env.GOOGLE_API_KEY
+    });
+    console.log(jsonData);
+    const jsonDataText = jsonData.map((x) => x.text);
+    const jsonDataVector = jsonDataText.map((text) => geminiEmbedding.getTextEmbedding(text));
+    const vectors = yield Promise.all(jsonDataVector);
+    console.log(vectors);
+    PineconeVectors.push(vectors);
+    console.log(PineconeVectors[0]);
+    return vectors;
+  });
+}
+function uploadVectorsToPinecone(vectors, messages2) {
+  return __async(this, null, function* () {
+    try {
+      const pc = new Pinecone(
+        {
+          apiKey: process.env.PINECONE_API_KEY
+        }
+      );
+      const index = pc.index("slackindex");
+      const upsertData = vectors.map((vector, idx) => {
+        var _a, _b, _c;
+        return {
+          id: `msg_${idx}`,
+          values: vector,
+          metadata: {
+            timestamp: ((_a = messages2[idx]) == null ? void 0 : _a.ts) || (/* @__PURE__ */ new Date()).toISOString(),
+            user: ((_b = messages2[idx]) == null ? void 0 : _b.user) || "unknown",
+            text: ((_c = messages2[idx]) == null ? void 0 : _c.text) || ""
+          }
+        };
+      });
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < upsertData.length; i += BATCH_SIZE) {
+        const batch = upsertData.slice(i, i + BATCH_SIZE);
+        yield index.namespace("slack-messages").upsert(batch);
+        console.log(`Uploaded batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(upsertData.length / BATCH_SIZE)}`);
+      }
+      console.log("Successfully uploaded all vectors to Pinecone");
+      return true;
+    } catch (error) {
+      console.error("Error uploading vectors to Pinecone:", error);
+      throw error;
+    }
+  });
+}
+function runAll() {
+  return __async(this, null, function* () {
+    try {
+      yield getChannelNames();
+      const channelId = yield getChannelIdByName("all-new-workspace");
+      const channelMessages = yield getMessagesFromChannel(channelId);
+      const vectors = yield vectorizeJSON(messages);
+      yield uploadVectorsToPinecone(PineconeVectors[0], channelMessages);
+    } catch (error) {
+      console.error("Error in runAll:", error);
+    }
+  });
+}
+
 // index.ts
 var app = express2();
 var port = parseInt(process.env.PORT || "8000");
@@ -1097,4 +1216,9 @@ app.use("/api/chat", chat_route_default);
 app.use("/api/sandbox", sandbox);
 app.listen(port, () => {
   console.log(`\u26A1\uFE0F[server]: Server is running at http://localhost:${port}`);
+  runAll().then(() => {
+    console.log("Slack data processing completed");
+  }).catch((error) => {
+    console.error("Error during Slack data processing:", error);
+  });
 });
